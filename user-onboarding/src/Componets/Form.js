@@ -69,8 +69,6 @@ const FormikUserForm = withFormik({
     };
   },
 
-
-  //======VALIDATION SCHEMA==========
   validationSchema: Yup.object().shape({
     uname: Yup.string()
       .required("Please include the user's name"),
@@ -86,7 +84,6 @@ const FormikUserForm = withFormik({
       .required('Must Accept Terms and Conditions')
       .oneOf([true], 'Must Accept Terms and Conditions')
   }),
-  //======END VALIDATION SCHEMA==========
 
   handleSubmit(values, formikBag) {
     console.log(values);
