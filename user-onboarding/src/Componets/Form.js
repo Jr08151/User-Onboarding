@@ -1,102 +1,162 @@
-import React, {useEffect} from 'react';
-import { withFormik, Form, Field } from 'formik';
-import * as Yup from 'yup';
-import styled from 'styled-components';
+import React, { useState, useEffect } from 'react'; // import hooks
+import * as yup from 'yup'; // yup for everything
 import axios from 'axios';
 
-const roles = ['Front-End','Back-End','DB Manager','UX Designer'];
 
-const FormDiv = styled.div`
-  label {
-    margin: 10px 0px;
-    &:after {
-      content: ': ';
-    }
-  }
-  .check:after {
-    content: '';
-  }
-  input {
-    margin: 5px 0px;
-  }
-`;
+// Setting up our Schema
 
-const Error = styled.p`
-  color: red;
-  font-size: 0.6rem;
-  margin: 0;
-`;
+//Set up what the use is required or not required to input
+const formSchema = yup.object().shape({
+   name: yup.string().required('Name is required'),
+   email: yup.string().email().required('Must include the email'),
+   password: yup.string().required('Password is required'),
+   terms: yup.boolean().oneOf([true], "Please agree to Terms and Conditions.") 
+})
 
-function UserForm(props) {
-  useEffect(()=>{
-    if (props.isEditing) {
-      console.log(props);
-      props.setFieldValue('uname',props.uname);
-      props.setFieldValue('email',props.email);
-      props.setFieldValue('password',props.password);
-      props.setFieldValue('tos',props.tos);
-      props.setFieldValue('id',props.id);
-    }
-  },[props.isEditing]);
 
-  return (
-    <Form>
-      <FormDiv>
-        <label htmlFor="uname">Name</label><Field type="text" name="uname" placeholder="Name" /><br />
-        {props.touched.uname && props.errors.uname?<Error>{props.errors.uname}</Error>:<></>}
-        <label htmlFor="email">Email</label><Field type="email" name="email" placeholder="Email" /><br />
-        {props.touched.email && props.errors.email?<Error>{props.errors.email}</Error>:<></>}
-        <label htmlFor="password">Password</label><Field type="password" name="password" placeholder="Password" /><br />
-        {props.touched.password && props.errors.password?<Error>{props.errors.password}</Error>:<></>}
-        <label htmlFor="tos" className="check">Do you agree to the Terms of Service? </label><Field type="checkbox" name="tos" /><br />
-        {props.errors.tos?<Error>{props.errors.tos}</Error>:<></>}
-        <Field type="hidden" name="id" />
-        <button disabled={!props.isValid}>Submit</button>
-      </FormDiv>
-    </Form>
-  );
-}
 
-const FormikUserForm = withFormik({
-  mapPropsToValues(props) {
-    return {
-      uname: props.uname || "",
-      email: props.email || "",
-      role: props.role || "",
-      password: props.password || "",
-      tos: props.tos || false,
-      id: props.id || (props.currentId+1)
-    };
-  },
+//Create our form component here
+const Form = () => {
 
-  validationSchema: Yup.object().shape({
-    uname: Yup.string()
-      .required("Please include the user's name"),
-    email: Yup.string()
-      .email("Must be a valid email address")
-      .required("Please enter the user's email"),
-    role: Yup.string()
-      .oneOf(roles),
-    password: Yup.string()
-      .min(8, "Password must be at least 8 characters long")
-      .required("Password is required"),
-    tos: Yup.boolean()
-      .required('Must Accept Terms and Conditions')
-      .oneOf([true], 'Must Accept Terms and Conditions')
-  }),
+//Set state for the form itself -- for all the inputs
+const [formState, setFormState] = useState({
+    name:"",
+    email:"",
+    password:"",
+    terms:""
+})
 
-  handleSubmit(values, formikBag) {
-    console.log(values);
-    const userToSave = {...values, id: formikBag.props.currentId};
-    formikBag.props.addFunction(userToSave);
+//Set state for all the errors
+const [errors, setErrors] = useState({
+    name:"",
+    email:"",
+    password:"",
+    terms:""
+})
 
-    formikBag.setStatus("Form Submitting!");
-    formikBag.resetForm();
+// State for the button disable
+const [buttonDisabled, setButtonDisabled] = useState(true);
+//New state to set our post request too. So we can console.log and see it
+const [post, setPost] = useState([]);
+
+
+useEffect(() => {
 
 
 
    
-  }
-})(UserForm);
+    formSchema.isValid(formState) 
 
-export default FormikUserForm;
+
+    .then(valid => {
+        setButtonDisabled(!valid);
+        // console.log(valid);
+    });
+
+}, [formState]) 
+
+
+
+const validateChange = event => {
+    
+     yup
+     .reach(formSchema, event.target.name)
+     .validate(event.target.value)
+     .then(valid =>{
+         setErrors({
+             ...errors, 
+             [event.target.name]: ""
+         });
+     }).catch(err => {
+         setErrors({
+             ...errors, [event.target.name]: err.errors
+             
+         });
+     });
+};
+
+
+//Form submit here
+const formSubmit = event => {
+    event.preventDefault();
+    
+    axios
+    .post('https://reqres.in/api/users', formState)
+    .then(res => {
+        setPost(res.data);
+        console.log("success", post)
+
+        setFormState({
+            name:"",
+            email:"",
+            password:"",
+            terms:""
+        });
+    })
+    .catch(err => {
+        console.log(err.res);
+    })
+}
+
+
+
+const inputChange = event => {
+
+    event.persist(); 
+    const newFormData = {
+        ...formState,
+        [event.target.name]:
+        event.target.type === "checkbox" ? event.target.checked : event.target.value
+    };      
+    validateChange(event);
+    setFormState(newFormData);
+}
+
+    return (
+        <form onSubmit={formSubmit}>
+
+            <label htmlFor="name">Name</label>
+                <input 
+                    value={formState.name} 
+                    id="name"  
+                    type="text"
+                    name="name"
+                    onChange={inputChange}
+            /> <br/>
+
+            <label htmlFor="email">Email</label>
+                <input 
+                    value={formState.email} 
+                    id="email"
+                    type="text" 
+                    name="email"
+                    onChange={inputChange}
+            /> <br/>
+
+            <label htmlFor="password">Password</label>
+                <input            
+                    value={formState.password}  
+                    id="password"
+                    type="password"
+                    name="password"
+                    onChange={inputChange}
+            /> <br/>
+
+            <label htmlFor="terms">Please agreed to Terms of Service</label>
+                <input      
+                    id="terms"   
+                    type="checkbox"
+                    name="terms"
+                    checked={formState.terms} 
+                    onChange={inputChange}
+             /> <br/>
+            <pre>{JSON.stringify(post, null, 2)}</pre>
+            <button disabled={buttonDisabled}>
+               Submit
+            </button>            
+            
+        </form>
+    )
+}
+
+export default Form;
